@@ -1,0 +1,53 @@
+---
+
+- hosts: web
+  vars:
+
+    system_packages:
+      - postgresql
+      - postgresql-contrib
+      - libpq-dev
+      - python-psycopg2
+      - python-pip
+
+    dbname: basicdjangoansible
+    dbuser: djangouser
+    dbpassword: fgarockssomuch
+
+  become: true    
+
+  tasks:
+    - name: Install system packages
+      apt: pkg={{ item }} state=installed update_cache=true
+      with_items: "{{ system_packages }}"
+
+    - name: Install python packages
+      pip:
+        name: django
+
+    - name: Create database
+      become: true
+      become_user: postgres
+      postgresql_db: name={{ dbname }}
+
+    - name: Create user
+      become: true
+      become_user: postgres
+      postgresql_user:
+        db:{{ dbname }}
+        name: {{ dbname }}
+        password: {{ dbpassword }}
+
+    - name: Server state
+      service: name=postgresql state=started
+
+    - name: Load correct fixtures
+      django_manage:
+        command: loaddata
+        fixtures: db.fixture.json
+
+    - name: Copy
+      template:
+        src: templates/settings.py.j2
+        dest: djangobasico/settings.py
+
